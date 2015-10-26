@@ -61,7 +61,9 @@ ifneq (,$(filter gnrc_sixlowpan_nd_border_router,$(USEMODULE)))
     SRC += sc_gnrc_6ctx.c
 endif
 endif
-
+ifneq (,$(filter key_auth,$(USEMODULE)))
+    SRC += sc_key_auth.c
+endif
 # TODO
 # Conditional building not possible at the moment due to
 # https://github.com/RIOT-OS/RIOT/issues/2058

@@ -69,6 +69,15 @@ extern "C" {
 /** @} */
 
 /**
+ * @name PN532 config
+ * @{
+ */
+#define PN532_SPI       SPI_0
+#define PN532_SPI_SPEED SPI_SPEED_1MHZ
+#define PN532_CS        GPIO_3
+/** @} */
+
+/**
  * @brief Initialize board specific hardware, including clock, LEDs and std-IO
  */
 void board_init(void);

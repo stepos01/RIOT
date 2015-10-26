@@ -1,5 +1,5 @@
 # name of your application
-APPLICATION = hello-world
+APPLICATION = noise_loop_test
 
 # If no BOARD is found in the environment, use this default:
 BOARD ?= udoo
@@ -20,3 +20,4 @@ include $(RIOTBASE)/Makefile.include
 USEMODULE += xtimer
 USEMODULE += noise_loop
 USEMODULE += pn532
+USEMODULE+=	gnrc_pktbuf_static

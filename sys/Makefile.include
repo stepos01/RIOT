@@ -61,5 +61,8 @@ endif
 ifneq (,$(filter newlib,$(USEMODULE)))
     include $(RIOTBASE)/sys/newlib/Makefile.include
 endif
+ifneq (,$(filter noise_loop,$(USEMODULE)))
+    USEMODULE_INCLUDES += $(RIOTBASE)/include/noise_loop
+endif
 
 INCLUDES += -I$(RIOTBASE)/sys/libc/include

@@ -67,6 +67,16 @@ extern "C" {
 /** @} */
 
 /**
+ * @name PN532 config
+ * @{
+ */
+#define PN532_SPI       SPI_1
+#define PN532_SPI_SPEED SPI_SPEED_1MHZ
+#define PN532_CS        GPIO(PA, 5)
+/** @} */
+
+
+/**
  * @name Define UART device and baudrate for stdio
  * @{
  */
