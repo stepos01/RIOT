@@ -27,8 +27,7 @@ int _key_auth_start(int argc, char **argv){
 			 printf("usage: %s ip_v6_address port_number\n", argv[0]);
 			        return 1;
 		}
-		int port = atoi(argv[2]);
-		key_auth_start(argv[1],(uint16_t)port);
+		key_auth_start(argv[1],argv[2]);
 		return 0;
 }
 

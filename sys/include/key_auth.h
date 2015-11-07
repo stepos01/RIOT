@@ -16,7 +16,6 @@
 #else
 #include "pn532.h"
 #endif
-#include "debug.h"
 
 #define KEY_AUTH_STACK_SIZE        (THREAD_STACKSIZE_DEFAULT)
 #define KEY_AUTH_PRIO              (THREAD_PRIORITY_MAIN - 1)
@@ -35,6 +34,7 @@ typedef struct key_auth_msg_request{
 	uint8_t id;
 #ifdef KEY_AUTH_TEST_NATIVE
 	char * dest_addr;
+	char * port;
 #endif
 }key_auth_msg_request_t;
 
@@ -44,7 +44,7 @@ extern "C" {
 
 
 kernel_pid_t key_auth_init(uint8_t node_id,uint8_t key_auth_node_sn);
-void key_auth_start(char * addr,uint16_t port);
+void key_auth_start(char * addr,char * port);
 
 #ifdef __cplusplus
 }

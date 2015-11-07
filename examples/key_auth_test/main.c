@@ -22,6 +22,12 @@
 #include <stdio.h>
 #include "shell.h"
 #include "msg.h"
+#include "net/gnrc.h"
+#include "net/gnrc/ipv6.h"
+#include "net/gnrc/udp.h"
+#include "net/gnrc/pktdump.h"
+#include "timex.h"
+//static gnrc_netreg_entry_t server = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PID_UNDEF };
 
 #define MAIN_QUEUE_SIZE     (8)
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
@@ -36,7 +42,9 @@ int main(void)
     /* we need a message queue for the thread running the shell in order to
         * receive potentially fast incoming networking packets */
        msg_init_queue(_main_msg_queue, MAIN_QUEUE_SIZE);
-
+//       server.pid = gnrc_pktdump_getpid();
+//          server.demux_ctx = (uint32_t)1;
+//          gnrc_netreg_register(GNRC_NETTYPE_UDP, &server);
        /* start shell */
        puts("All up, running the shell now");
        char line_buf[SHELL_DEFAULT_BUFSIZE];
