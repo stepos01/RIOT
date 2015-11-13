@@ -12,22 +12,30 @@
 
 
 int _key_auth_init(int argc, char **argv){
-	if(argc<3){
-		 printf("usage: %s node_id serial_number\n", argv[0]);
+	if(argc<4){
+		 printf("usage: %s node_id serial_number node_type\n", argv[0]);
 		        return 1;
 	}
 	int node_id = atoi(argv[1]);
 	int sn = atoi(argv[2]);
-	key_auth_init(node_id,sn);
+	uint8_t node_type = atoi(argv[3]);
+	key_auth_init(node_id,sn,node_type);
 	return 0;
 }
+int _key_auth_add(int argc,char**argv){
+	if(argc<3){
+		 printf("usage: %s node_id serial_number \n", argv[0]);
+		        return 1;
+	}
+		key_auth_add(argv[1],argv[2]);
+		return 0;
+}
+
 
 int _key_auth_start(int argc, char **argv){
-	if(argc<3){
-			 printf("usage: %s ip_v6_address port_number\n", argv[0]);
-			        return 1;
-		}
-		key_auth_start(argv[1],argv[2]);
+	(void)argc;
+	(void)argv;
+		key_auth_start();
 		return 0;
 }
 

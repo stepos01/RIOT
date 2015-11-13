@@ -129,6 +129,8 @@ extern int _gnrc_6ctx(int argc, char **argv);
 #ifdef MODULE_KEY_AUTH
 extern int _key_auth_init(int argc, char **argv);
 extern int _key_auth_start(int argc, char **argv);
+extern int _key_auth_add(int argc, char **argv);
+
 #endif
 
 
@@ -218,6 +220,8 @@ const shell_command_t _shell_command_list[] = {
 #ifdef MODULE_KEY_AUTH
     {"key_auth_init", "init key auth", _key_auth_init },
     {"key_auth_start", "start key auth", _key_auth_start },
+    {"key_auth_add", "add id and sn", _key_auth_add },
+
 #endif
     {NULL, NULL, NULL}
 };
