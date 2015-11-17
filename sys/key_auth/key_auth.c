@@ -26,16 +26,19 @@ static char _stack[KEY_AUTH_STACK_SIZE];
 
 static uint8_t key_auth_node_id = 0;
 static uint8_t key_auth_node_sn = 0;
+static uint8_t key_auth_key[20] = {0};
 static uint32_t seq_number = 1;			//should be of size sizeof(char)*6
 static key_auth_node_type_t node_type = 0;
 static char * key_auth_test_addr = "ff02::1" ;
 static char * key_auth_test_port = "1";
 static volatile kernel_pid_t key_auth_pid = KERNEL_PID_UNDEF;
 static void _rcv(gnrc_pktsnip_t*p);
+static void _verifyKey(key_auth_msg_response_t *response,key_auth_msg_confirm_t * confirm);
+static uint8_t _verify_confirm(key_auth_msg_confirm_t * confirm,key_auth_dictionary_t*entry);
 static void _toArray(uint32_t src,u8 * dest,uint8_t length);
 static void _gen_key(key_auth_dictionary_t * dic,key_auth_msg_request_t * request,key_auth_msg_response_t * req);
 static gnrc_netreg_entry_t server = { NULL, GNRC_NETREG_DEMUX_CTX_ALL, KERNEL_PID_UNDEF };
-
+static void _gen_kasme(u8 ck[16],u8 ik[16],u8 sqnXORak[6],uint8_t kasme[20]);
 static key_auth_dictionary_t * head = NULL;
 
 static void *_event_loop(void *args);
@@ -121,30 +124,24 @@ static void _gen_key(key_auth_dictionary_t * dic,key_auth_msg_request_t * reques
 
 		for(int i=0;i<16;i++)
 		{
-			key[i]=request->id;
+			key[i]=dic->sn;
 		}
 		seq_number ++;
 		_toArray(seq_number,sqn,6);
 		f1(key,rand,sqn,amf,mac,op);
 		f2345(key,rand,res,ck,ik,ak,op);
 
-		u8 sha_key[32]={0};
 		u8 sqnXORak[6]={0};
 		for(int i=0;i<6;i++)
 				{
 			sqnXORak[i]=ak[i]^sqn[i];
 				}
-		memcpy(sha_key,ck,16);
-		memcpy(sha_key+16,ik,16);
-		u8 sha_text[12]= {0};
-		sha_text[0]=0x01;
 
-		memcpy(sha_text+4,sqnXORak,sizeof(sqnXORak));
 
 
 
 		uint8_t kasme[20];
-		hmac_sha1(sha_text,sizeof(sha_text),sha_key,sizeof(sha_key),kasme);
+		_gen_kasme(ck,ik,sqnXORak,kasme);
 
 
 		memcpy(response->autn,sqnXORak,6);
@@ -169,7 +166,21 @@ static void _gen_key(key_auth_dictionary_t * dic,key_auth_msg_request_t * reques
 
 
 }
+static void _gen_kasme(u8 ck[16],u8 ik[16],u8 sqnXORak[6],uint8_t kasme[20]){
+	u8 sha_key[32]={0};
 
+			memcpy(sha_key,ck,16);
+			memcpy(sha_key+16,ik,16);
+			u8 sha_text[12]= {0};
+			sha_text[0]=0x01;
+
+			memcpy(sha_text+4,sqnXORak,6);
+
+
+
+			hmac_sha1(sha_text,sizeof(sha_text),sha_key,sizeof(sha_key),kasme);
+
+}
 static void _toArray(uint32_t src,u8 * dest,uint8_t length)
 {
 	for(int i = 0;i<length;i++)
@@ -197,6 +208,8 @@ static void _rcv(gnrc_pktsnip_t*pkt){
 				response.msg.msg_type = KEY_AUTH_MSG_TYPE_AUTH_RESPONSE;
 				response.msg.port = key_auth_test_port;
 				response.msg.dest_addr = key_auth_test_addr;
+				response.msg.id = key_auth_node_id;
+
 				_send_auth_request((key_auth_msg_t*)(&response),sizeof(response));
 
 
@@ -211,17 +224,66 @@ static void _rcv(gnrc_pktsnip_t*pkt){
 	}
 	case KEY_AUTH_MSG_TYPE_AUTH_RESPONSE:
 	{
-		if(node_type==KEY_AUTH_NODE_TYPE_BROOKER)
 		{
 			key_auth_msg_response_t * response = (key_auth_msg_response_t*)snip->data;
 			puts("KEY_AUTH_MSG_TYPE_AUTH_RESPONSE received");
+			key_auth_msg_confirm_t confirm;
+			_verifyKey(response,&confirm);
+			confirm.msg.msg_type = KEY_AUTH_MSG_TYPE_CONFIRM_REQUEST;
+			confirm.msg.port = key_auth_test_port;
+			confirm.msg.dest_addr = key_auth_test_addr;
+			confirm.msg.id = key_auth_node_id;
+			_send_auth_request((key_auth_msg_t*)(&response),sizeof(response));
+		}
+		break;
+	}
+	case KEY_AUTH_MSG_TYPE_CONFIRM_REQUEST:
+	{
+		puts("KEY_AUTH_MSG_TYPE_CONFIRM_REQUEST received");
 
+		if(node_type==KEY_AUTH_NODE_TYPE_BROOKER)
+		{
+			key_auth_msg_confirm_t * confirm = (key_auth_msg_confirm_t*)snip->data;
+			if(confirm->success==0)
+			{
+				printf("Received a failed AUTH notification from node: %d\n",confirm->msg.id);
+				return;
+			}
+			key_auth_dictionary_t * entry;
 
+			LL_SEARCH_SCALAR(head,entry,id,confirm->msg.id);
+						if(entry && entry->id==confirm->msg.id){
+							//found
+							printf("SN found:id: %d => sn: %d\n",entry->id,entry->sn);
+							uint8_t result = _verify_confirm(confirm,entry);
+							key_auth_msg_confirm_response_t response;
+							response.msg.msg_type = KEY_AUTH_MSG_TYPE_CONFIRM_RESPONSE;
+											response.msg.port = key_auth_test_port;
+											response.msg.dest_addr = key_auth_test_addr;
+											response.msg.id = key_auth_node_id;
+											response.success = result;
+											_send_auth_request((key_auth_msg_t*)(&response),sizeof(response));
+						}else{
+							printf("No node with id %d found\n",confirm->msg.id);
+						}
 
+		}
+		break;
+	}
+	case KEY_AUTH_MSG_TYPE_CONFIRM_RESPONSE:
+	{
+		puts("KEY_AUTH_MSG_TYPE_CONFIRM_RESPONSE received");
+		key_auth_msg_confirm_response_t * response = (key_auth_msg_confirm_response_t*)snip->data;
+		if(response->success){
+			puts("Auth succeeded! keys confirmed...\n");
+			//TODO generate PRIV AND PUB AND SEND THEM WITH KEY_AUTH_KEY
 
 		}else{
-			puts("Not supported!");
+			puts("Auth failed! keys denied...\n");
+			memset(key_auth_key,0,sizeof(key_auth_key));
 		}
+
+
 		break;
 	}
 	default:
@@ -230,6 +292,73 @@ static void _rcv(gnrc_pktsnip_t*pkt){
 	gnrc_pktbuf_release(pkt);
 }
 
+static void _verifyKey(key_auth_msg_response_t *response,key_auth_msg_confirm_t*confirm){
+	u8 key[16] = {0},op[16] = {0},ck[16] = {0},ik[16] = {0};
+			u8 sqn[6] = {0},ak[6]={0};u8 amf[2]={0};
+			u8 mac[8] = {0},res[8] =  {0};
+			u8 sqnXORak[6]={0};
+			u8 xmac[8] = {0};
+			for(int i=0;i<16;i++)
+					{
+						key[i]=key_auth_node_sn;
+					}
+	f2345(key,response->rand,res,ck,ik,ak,op);
+	memcpy(sqnXORak,response->autn,sizeof(sqnXORak));
+	memcpy(amf,response->autn+6,2);
+	for(int i=0;i<6;i++)
+	{
+		sqn[i] = sqnXORak[i]^ak[i];
+	}
+	f1(key,response->rand,sqn,amf,mac,op);
+	memcpy(xmac,response->autn+8,8);
+	uint8_t equal = 1;
+	for(int i=0;i<8;i++)
+	{
+		if(xmac[i]!=mac[i]){
+			equal=0;
+			break;
+		}
+	}
+	if(equal == 0)
+	{
+		confirm->success=0;
+		puts("Auth failed during XMAC verification!\n");
+
+		return;
+
+	}
+	memcpy(confirm->res,res,sizeof(res));
+
+	confirm->success = 1;
+	puts("Auth succeeded! Generating keys...\n");
+	_gen_kasme(ck,ik,sqnXORak,key_auth_key);
+
+	return;
+
+}
+static uint8_t _verify_confirm(key_auth_msg_confirm_t * confirm,key_auth_dictionary_t*entry)
+{
+	uint8_t equal= 1;
+	for(uint8_t i=0;i<sizeof(entry->res);i++)
+	{
+		if(entry->res[i]!=confirm->res[i]){
+			equal = 0;
+			break;
+		}
+	}
+	if(equal==0)
+	{
+		puts("Auth failed during RES verification!\n");
+		memset(entry->kasme,0,sizeof(entry->kasme));
+		memset(entry->res,0,sizeof(entry->res));
+		return 0;
+	}
+	puts("Auth Succeeded totally!\n");
+	return 1;
+
+
+
+}
 
 
 static void _send_auth_request(key_auth_msg_t *req,size_t size) {

@@ -54,9 +54,11 @@ typedef struct key_auth_msg{
 	char * dest_addr;
 	char * port;
 #endif
+	uint8_t id;
 }key_auth_msg_t;
 typedef struct key_auth_msg_request{
 	key_auth_msg_t msg;
+	//todo remove ID from here and use the one in key_auth_msg_t
 	uint8_t id;
 	key_auth_algorithm_type_t algorithm_type;
 
@@ -72,8 +74,13 @@ typedef struct key_auth_msg_response{
 typedef struct key_auth_msg_confirm_t{
 	key_auth_msg_t msg;
 	uint8_t res[8];
+	uint8_t success;
 }key_auth_msg_confirm_t;
+typedef struct key_auth_msg_confirm_response_t{
+	key_auth_msg_t msg;
+	uint8_t success;
 
+}key_auth_msg_confirm_response_t;
 typedef struct key_auth_dictionary{
 	uint8_t id;
 	uint8_t sn;
